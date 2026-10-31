@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trash Toss: Desktop Purge</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+    header {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .brand { font-size: 1.4rem; font-weight: 800; color: var(--accent); }
+    .stats { display: flex; gap: 16px; font-weight: 600; font-size: 0.95rem; }
+    .stat-pill { background: var(--card); border: 1px solid var(--border); padding: 6px 14px; border-radius: 999px; }
+    
+    .arena {
+      width: 100%;
+      max-width: 800px;
+      background: var(--card);
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 280px;
+      justify-content: center;
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .file-card {
+      background: #273549;
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+      animation: pop 0.25s ease-out;
+      width: 90%;
+      max-width: 440px;
+    }
+    @keyframes pop {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .file-icon { font-size: 2.2rem; }
+    .file-info { flex: 1; min-width: 0; }
+    .file-name { font-weight: 700; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-meta { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+    
+    .bins-grid {
+      width: 100%;
+      max-width: 800px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .bin {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+    .bin:active { transform: scale(0.96); }
+    .bin.trash:hover { border-color: var(--danger); background: rgba(239,68,68,0.1); }
+    .bin.docs:hover { border-color: var(--accent); background: rgba(56,189,248,0.1); }
+    .bin.archive:hover { border-color: var(--warning); background: rgba(245,158,11,0.1); }
+    
+    .bin-emoji { font-size: 2.2rem; }
+    .bin-title { font-weight: 700; font-size: 1rem; }
+    .bin-key {
+      font-size: 0.75rem;
+      background: rgba(255,255,255,0.08);
+      padding: 3px 8px;
+      border-radius: 6px;
+      color: var(--muted);
+    }
+    
+    .terminal {
+      width: 100%;
+      max-width: 800px;
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      color: #38bdf8;
+      height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .term-row { opacity: 0.9; }
+    .term-row.del { color: var(--danger); }
+    .term-row.mv { color: var(--success); }
+    
+    .export-bar {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 800px;
+    }
+    .btn {
+      flex: 1;
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">🗑️ Trash Toss</div>
+    <div class="stats">
+      <div class="stat-pill">Score: <span id="score">0</span></div>
+      <div class="stat-pill">Remaining: <span id="rem">10</span></div>
+    </div>
+  </header>
+
+  <div class="arena">
+    <div class="file-card" id="currentCard">
+      <div class="file-icon" id="fileIcon">📦</div>
+      <div class="file-info">
+        <div class="file-name" id="fileName">slack_installer_v4.2.dmg</div>
+        <div class="file-meta" id="fileMeta">Size: 182 MB • ~/Downloads</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bins-grid">
+    <div class="bin trash" onclick="sortAction('trash')">
+      <span class="bin-emoji">🔥</span>
+      <span class="bin-title">Purge / Trash</span>
+      <span class="bin-key">[1] Delete</span>
+    </div>
+    <div class="bin docs" onclick="sortAction('docs')">
+      <span class="bin-emoji">📁</span>
+      <span class="bin-title">Documents</span>
+      <span class="bin-key">[2] Move</span>
+    </div>
+    <div class="bin archive" onclick="sortAction('archive')">
+      <span class="bin-emoji">🗄️</span>
+      <span class="bin-title">Cold Archive</span>
+      <span class="bin-key">[3] Tar/Zip</span>
+    </div>
+  </div>
+
+  <div class="terminal" id="term">
+    <div class="term-row">> Background POSIX worker initialized. Ready for triage...</div>
+  </div>
+
+  <div class="export-bar">
+    <button class="btn" onclick="exportScript()">⬇️ Download Cleanup Script (.sh)</button>
+  </div>
+
+  <script>
+    const items = [
+      { name: "zoom_us_installer.pkg", size: "64 MB", type: "installer", path: "~/Downloads/" },
+      { name: "Screen Shot 2026-08-11 at 10.42.png", size: "3.2 MB", type: "screen", path: "~/Desktop/" },
+      { name: "Financial_Report_Q3_Final.pdf", size: "1.4 MB", type: "doc", path: "~/Downloads/" },
+      { name: "node_modules_backup.tar.gz", size: "480 MB", type: "archive", path: "~/Desktop/" },
+      { name: "vscode_arm64.dmg", size: "115 MB", type: "installer", path: "~/Downloads/" },
+      { name: "Invoice_Aug_2026.docx", size: "220 KB", type: "doc", path: "~/Downloads/" },
+      { name: "dump_log_err.log", size: "45 MB", type: "log", path: "~/Desktop/" },
+      { name: "Project_Assets_2025.zip", size: "230 MB", type: "archive", path: "~/Downloads/" }
+    ];
+
+    let currentIdx = 0;
+    let score = 0;
+    const executionQueue = [];
+
+    function updateCard() {
+      if(currentIdx >= items.length) {
+        document.getElementById('currentCard').innerHTML = `
+          <div style="text-align:center;width:100%;padding:20px;">
+            <h3>🎉 Inbox & Desktop Purged!</h3>
+            <p style="color:#94a3b8;margin-top:8px;">All files cataloged into automation queue.</p>
+          </div>
+        `;
+        document.getElementById('rem').innerText = "0";
+        return;
+      }
+      const item = items[currentIdx];
+      document.getElementById('fileName').innerText = item.name;
+      document.getElementById('fileMeta').innerText = `Size: ${item.size} • ${item.path}`;
+      document.getElementById('rem').innerText = items.length - currentIdx;
+    }
+
+    function log(msg, cls="") {
+      const term = document.getElementById('term');
+      const row = document.createElement('div');
+      row.className = `term-row ${cls}`;
+      row.innerText = msg;
+      term.appendChild(row);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function sortAction(action) {
+      if(currentIdx >= items.length) return;
+      const file = items[currentIdx];
+      
+      if(action === 'trash') {
+        const cmd = `rm -f "${file.path}${file.name}"`;
+        executionQueue.push(cmd);
+        log(`> [EXEC] ${cmd}`, 'del');
+        score += 150;
+      } else if(action === 'docs') {
+        const cmd = `mv "${file.path}${file.name}" ~/Documents/`;
+        executionQueue.push(cmd);
+        log(`> [EXEC] ${cmd}`, 'mv');
+        score += 100;
+      } else {
+        const cmd = `mv "${file.path}${file.name}" ~/Archive/`;
+        executionQueue.push(cmd);
+        log(`> [EXEC] ${cmd}`);
+        score += 120;
+      }
+
+      currentIdx++;
+      document.getElementById('score').innerText = score;
+      updateCard();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if(e.key === '1') sortAction('trash');
+      if(e.key === '2') sortAction('docs');
+      if(e.key === '3') sortAction('archive');
+    });
+
+    function exportScript() {
+      if(executionQueue.length === 0) {
+        alert("Sort some files first to build your script!");
+        return;
+      }
+      const scriptContent = "#!/usr/bin/env bash\n# Trash Toss Background Execution Script\n\n" + executionQueue.join("\n") + "\necho 'Cleanup completed!'\n";
+      const blob = new Blob([scriptContent], { type: 'text/x-sh' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "desktop_cleanup.sh";
+      a.click();
+    }
+
+    updateCard();
+  </script>
+</body>
+</html>
